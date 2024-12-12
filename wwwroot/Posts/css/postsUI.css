@@ -164,3 +164,6 @@
     overflow-y: auto;
     scrollbar-gutter: stable;
 }
+.image{
+    width: 50%;
+}

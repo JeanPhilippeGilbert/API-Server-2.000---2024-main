@@ -6,7 +6,7 @@
 
 
 
-const API_URL= "https://elfin-spot-halloumi.glitch.me/";
+const API_URL= "http://localhost:5000";
 const periodicRefreshPeriod = 10;
 const waitingGifTrigger = 2000;
 const minKeywordLenth = 3;
@@ -22,8 +22,11 @@ let waiting = null;
 let showKeywords = false;
 let keywordsOnchangeTimger = null;
 
+
 let userJSON = sessionStorage.getItem("user");
 let user = null;
+
+
 
 if (userJSON) {
     
@@ -31,7 +34,7 @@ if (userJSON) {
     updateDropDownMenu();
     Init_UI();
 } else {
-    console.log(user);
+    
     // Aucun utilisateur connecté, initialiser un objet utilisateur par défaut
     Init_UI();
 }
@@ -111,11 +114,18 @@ function toogleShowKeywords() {
 /////////////////////////// Views management ////////////////////////////////////////////////////////////
 
 function intialView() {
-    if(sessionStorage.getItem("user") != null){
-        $("#createPost").show();
+    if(user != null){
+        if(user.Authorizations.readAccess == 1){
+            $("#createPost").hide();
+        }
+        else
+            $("#createPost").show();
+    
     }
-    else
-    $("#createPost").hide();
+    else{
+        $("#createPost").hide();
+    }
+
     $("#hiddenIcon").hide();
     $("#hiddenIcon2").hide();
     $('#menu').show();
@@ -254,21 +264,52 @@ function renderPost(post, user) {
     let date = convertToFrenchDate(UTC_To_Local(post.Date));
     let crudIcon;
     let likes = post.Likes;
+    //let owner = getOwner(post.OwnerId);
     //usersWhoLiked = getWhoLiked(likes);
     if(likes){
-        console.log(post.Likes.length);
+        
         likes = post.Likes.length;
     }
     else
         likes = 0;
-    if(user != null){
-         crudIcon =
-        `
-        <span class="editCmd cmdIconSmall fa fa-pencil" postId="${post.Id}" title="Modifier nouvelle"></span>
-        <span class="deleteCmd cmdIconSmall fa fa-trash" postId="${post.Id}" title="Effacer nouvelle"></span>
-        <span class=" cmdIconSmall fa-regular fa-thumbs-up" postId="${post.Id}" title="Aimer ce post"></span>
-        <span class=" cmdIconSmall" postId="${post.Id}">${likes}</span>
-        `;
+    if(user!= null){
+        switch(user.Authorizations.readAccess){
+            case 1:
+                crudIcon =
+                `
+                    <span class=" cmdIconSmall fa-regular fa-thumbs-up" postId="${post.Id}" title="Aimer ce post"></span>
+                    <span class=" cmdIconSmall" postId="${post.Id}">${likes}</span>
+                `;
+                break;
+            case 2:
+                if(user.Id == post.OwnerId){
+                    crudIcon =
+                `
+                <span class="editCmd cmdIconSmall fa fa-pencil" postId="${post.Id}" title="Modifier nouvelle"></span>
+                <span class="deleteCmd cmdIconSmall fa fa-trash" postId="${post.Id}" title="Effacer nouvelle"></span>
+                <span class=" cmdIconSmall fa-regular fa-thumbs-up" postId="${post.Id}" title="Aimer ce post"></span>
+                <span class=" cmdIconSmall" postId="${post.Id}">${likes}</span>
+                `;
+                }
+                else{
+                    crudIcon =
+                    `
+                    <span class=" cmdIconSmall fa-regular fa-thumbs-up" postId="${post.Id}" title="Aimer ce post"></span>
+                    <span class=" cmdIconSmall" postId="${post.Id}">${likes}</span>
+                    `;
+                }
+                
+                break;
+            case 3:
+                crudIcon =
+                `
+                <span class="editCmd cmdIconSmall fa fa-pencil" postId="${post.Id}" title="Modifier nouvelle"></span>
+                <span class="deleteCmd cmdIconSmall fa fa-trash" postId="${post.Id}" title="Effacer nouvelle"></span>
+                <span class=" cmdIconSmall fa-regular fa-thumbs-up" postId="${post.Id}" title="Aimer ce post"></span>
+                <span class=" cmdIconSmall" postId="${post.Id}">${likes}</span>
+                `;
+            break;
+        }
     }
     else
          crudIcon = "";
@@ -281,6 +322,7 @@ function renderPost(post, user) {
             </div>
             <div class="postTitle"> ${post.Title} </div>
             <img class="postImage" src='${post.Image}'/>
+            
             <div class="postDate"> ${date} </div>
             <div postId="${post.Id}" class="postTextContainer hideExtra">
                 <div class="postText" >${post.Text}</div>
@@ -336,6 +378,7 @@ function updateDropDownMenu() {
     // Check if a user is logged in based on session storage
     if (user) {
         // User is logged in - Show Déconnexion
+        
         DDMenu.append(`
             <div class=" menuItemLayout" id="profile">
                  <img class="postImage" src='${user.Avatar}'/>
@@ -350,9 +393,19 @@ function updateDropDownMenu() {
             </div>
             <div class="dropdown-divider"></div>
         `);
+        if(user.Authorizations.readAccess == 3){
+            DDMenu.append(`
+                
+               
+                <div class="dropdown-item menuItemLayout" id="admin">
+                    <i class="menuIcon fa fa-cog mx-2"></i> Gestion des usagers
+                </div>
+                <div class="dropdown-divider"></div>
+            `);
+        }
     } else {
         // No user logged in - Show Connexion
-        console.log("je suis gay");
+        
         DDMenu.append(`
             <div class="dropdown-item menuItemLayout" id="connexion">
                 <i class="menuIcon fa fa-right-to-bracket mx-2"></i> Connexion
@@ -408,7 +461,7 @@ function updateDropDownMenu() {
     $('#connexion').on("click", showConnexionForm);
 
     $('#deconnexion').on("click", function () {
-        //console.log(loggedUser);
+        
         $.ajax({
             url: `${API_URL}/accounts/logout?userId=${user.Id}`,
             method: "GET",
@@ -619,8 +672,9 @@ function renderConnexionForm(newUser = false){
         <label for="Password" class="form-label">Mot de Passe </label>
         <input 
                 class="form-control"
+                type="password"
                 name="Password"
-                id="Password"
+                id="maskedInput"
                 placeholder="Mot de Passe"
                 required
             />
@@ -644,8 +698,8 @@ function renderConnexionForm(newUser = false){
                 success: function(response) { // Callback function if request is successful
                     sessionStorage.setItem('authToken',response.Access_token);
                     sessionStorage.setItem('user',JSON.stringify(response.User));
-                    updateDropDownMenu();
                     showPosts();
+                    location.reload(true);
                     // Handle the response here (e.g., navigate the user or display a success message)
                 },
                 error: function(xhr, status, error) { // Callback function if request fails
@@ -669,7 +723,7 @@ function renderConnexionForm(newUser = false){
 
 }
 function renderInscriptionForm(user = null){
-    console.log(user);
+    
     let create = user == null;
     if(create) user = newUser();
     $("#commit").hide();
@@ -698,6 +752,7 @@ function renderInscriptionForm(user = null){
             <label for="Password" class="form-label">Mot de Passe </label>
             <input 
                     class="form-control"
+                    type="password"
                     name="Password"
                     id="Password"
                     placeholder="Mot de Passe"
@@ -707,6 +762,7 @@ function renderInscriptionForm(user = null){
             <input 
                 class="form-control mt-2"
                 name="ConfirmPassword"
+                type="password"
                 id="ConfirmPassword"
                 placeholder="Confirmez votre mot de passe"
                 required
@@ -722,7 +778,7 @@ function renderInscriptionForm(user = null){
                 value="${user.Name}"
             />
             <label class="form-label">Image </label>
-            <div class='imageUploaderContainer'>
+            <div class='imageUploaderContainer image'>
                 <div class='imageUploader' 
                      newImage='${create}' 
                      controlId='Avatar' 
@@ -733,7 +789,7 @@ function renderInscriptionForm(user = null){
             <div>
                 <input type="submit" value="Enregistrer" id="save" class="btn btn-primary ">
             </div>
-            <div>
+            <div id="delete">
                 <input type="button" value="Supprimer le compte" id="delete" class="btn btn-primary ">
             </div>
         `);
@@ -742,11 +798,12 @@ function renderInscriptionForm(user = null){
     addConflictValidation(`${API_URL}/accounts/conflict`, "Email", "save");
 
     $("#delete").on('click',function(){
-        
+        deleteUser(user);
     });
     if(create){
+        $("#delete").hide();
         $("#userForm").on('submit',function (event){
-            console.log("in");
+            
             event.preventDefault();
             $("#ConfirmCourriel").remove();
             $("#ConfirmPassword").remove();
@@ -771,13 +828,13 @@ function renderInscriptionForm(user = null){
     }
     else{
         $("#userForm").on('submit',function (event){
-            console.log("edit");
+            
             event.preventDefault();
             $("#ConfirmCourriel").remove();
             $("#ConfirmPassword").remove();
             let userDetails = getFormData($("#userForm"));
     
-            console.log(sessionStorage.getItem('authToken'));
+            
             $.ajax({
                 url: `${API_URL}/accounts/modify`,       // URL of the endpoint you want to hit
                 type: 'PUT',
@@ -801,6 +858,26 @@ function renderInscriptionForm(user = null){
     }
     
     
+}
+function deleteUser(user){
+    $.ajax({
+        url: `http://localhost:5000/accounts/remove/${user.Id}`,  // Use the correct URL with the user ID
+        method: "GET",  // The HTTP method for delete
+        headers: {
+            'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`,  // Include the auth token
+        },
+        success: function(response) {
+            console.log("User successfully removed:", response);
+            showConnexionForm();
+            sessionStorage.clear();
+            // You can add your logic here, like redirecting or updating the UI
+        },
+        error: function(xhr, status, error) {
+            console.error("Error:", error);
+            console.log("Response:", xhr.responseText);
+            // Handle any errors here
+        }
+    });
 }
 function renderPostForm(post = null) {
     let create = post == null;
@@ -895,24 +972,4 @@ function getFormData($form) {
     });
     return jsonObject;
 }
-async function logout(userId) {
-    try {
-        const response = await fetch(`${API_URL}/accounts/logout/${userId}`, {
-            method: 'POST', // Ou 'DELETE' si vous utilisez cette convention
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Ajoutez le token si nécessaire
-            }
-        });
 
-        if (response.ok) {
-            console.log("Successfully logged out");
-            sessionStorage.removeItem('token'); // Supprimez le token côté client
-        } else {
-            const error = await response.json();
-            console.error("Error logging out:", error);
-        }
-    } catch (err) {
-        console.error("Request failed:", err);
-    }
-}

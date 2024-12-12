@@ -26,7 +26,7 @@ export default class AccountsController extends Controller {
     }
     // POST: /token body payload[{"Email": "...", "Password": "..."}]
     login(loginInfo) {
-        console.log("in");
+        
         if (loginInfo) {
             if (this.repository != null) {
                 let user = this.repository.findByField("Email", loginInfo.Email);
@@ -48,7 +48,6 @@ export default class AccountsController extends Controller {
     logout() {
         let userId = this.HttpContext.path.params.userId;
         if (userId) {
-            console.log(userId);
             TokenManager.logout(userId);
             this.HttpContext.response.accepted();
         } else {
@@ -207,8 +206,16 @@ export default class AccountsController extends Controller {
     // GET:account/remove/id
     remove(id) { // warning! this is not an API endpoint 
         // todo make sure that the requester has legitimity to delete ethier itself or its an admin
+        console.log(id);
         if (AccessControl.writeGrantedAdminOrOwner(this.HttpContext.authorizations, this.requiredAuthorizations, id)) {
-            // todo
-        }
+            if (this.HttpContext.path.id !== '') {
+                if (this.repository.remove(id))
+                    this.HttpContext.response.accepted();
+                else
+                    this.HttpContext.response.notFound("Ressource not found.");
+            } else
+                this.HttpContext.response.badRequest("The Id in the request url is  not specified.");
+        } else
+            this.HttpContext.response.unAuthorized("Unauthorized access");
     }
 }

@@ -6,7 +6,7 @@
 
 
 
-const API_URL= "http://localhost:5000";
+const API_URL= "https://spotted-torpid-balance.glitch.me";
 const periodicRefreshPeriod = 10;
 const waitingGifTrigger = 2000;
 const minKeywordLenth = 3;

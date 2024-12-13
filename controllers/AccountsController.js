@@ -167,6 +167,7 @@ export default class AccountsController extends Controller {
     // PUT:accounts/modify body payload[{"Id": 0, "Name": "...", "Email": "...", "Password": "..."}]
     modify(user) {
         // empty asset members imply no change and there values will be taken from the stored record
+        console.log(user);
         if (AccessControl.writeGranted(this.HttpContext.authorizations, AccessControl.user())) {
             if (this.repository != null) {
                 user.Created = utilities.nowInSeconds();
@@ -206,8 +207,9 @@ export default class AccountsController extends Controller {
     // GET:account/remove/id
     remove(id) { // warning! this is not an API endpoint 
         // todo make sure that the requester has legitimity to delete ethier itself or its an admin
+        console.log(global.cachedTokens);
         console.log(id);
-        if (AccessControl.writeGrantedAdminOrOwner(this.HttpContext.authorizations, this.requiredAuthorizations, id)) {
+        if (AccessControl.writeGrantedAdminOrOwner(this.HttpContext, this.requiredAuthorizations, id)) {
             if (this.HttpContext.path.id !== '') {
                 if (this.repository.remove(id))
                     this.HttpContext.response.accepted();

@@ -23,20 +23,25 @@ let showKeywords = false;
 let keywordsOnchangeTimger = null;
 
 
+
 let userJSON = sessionStorage.getItem("user");
 let user = null;
 
-
+console.log(userJSON);
 
 if (userJSON) {
     
     user = JSON.parse(userJSON);
     updateDropDownMenu();
     Init_UI();
+    if(user.VerifyCode =="unverified"){
+        showVerify(user);
+    }
 } else {
     
     // Aucun utilisateur connecté, initialiser un objet utilisateur par défaut
     Init_UI();
+    showConnexionForm();
 }
 
 
@@ -60,10 +65,56 @@ async function Init_UI() {
     installKeywordsOnkeyupEvent();
     await showPosts();
     start_Periodic_Refresh();
+    
 }
 
 /////////////////////////// Search keywords UI //////////////////////////////////////////////////////////
-
+function showVerify(user) {
+    hidePosts();
+    $('#form').empty(); // Clear it only once
+    $("#viewTitle").text("Vérification");
+    // Append the new form
+    $("#form").show();
+    $("#form").append(`
+        <form id="verifyForm">
+            <input 
+                class="form-control"
+                type="text"
+                name="code"
+                id="code"
+                placeholder="code"
+                required
+            />
+            <h2 style="color:red;" id="errorCustom"></h2>
+            <input type="submit" value="Vérifier" id="verify" class="btn btn-primary">
+        </form>
+    `);
+    
+    // Attach the submit event listener
+    $("#verifyForm").on("submit", function (event) {
+        event.preventDefault();
+        let code = getFormData($("#verifyForm"));
+        console.log(code.code); // Assumes this fetches data correctly
+        $.ajax({
+            url: `${API_URL}/accounts/verify?id=${user.Id}&code=${code.code}`,
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`,
+            },
+            success: function (response) {
+                // Success logic here
+                console.log(response);
+                sessionStorage.setItem('user',JSON.stringify(response));
+            },
+            error: function (xhr) {
+                console.log(xhr);
+                sessionStorage.clear();
+                user = null; 
+                $("#errorCustom").text("Mauvais code !");
+            }
+        });
+    });
+}
 function installKeywordsOnkeyupEvent() {
     $("#searchKeys").on('keyup', function () {
         clearTimeout(keywordsOnchangeTimger);
@@ -381,8 +432,8 @@ function updateDropDownMenu() {
         
         DDMenu.append(`
             <div class=" menuItemLayout" id="profile">
-                 <img class="postImage" src='${user.Avatar}'/>
-                 <span>${user.Name}</span>
+                 <img class="miniimage postImage" src='${user.Avatar}'/>
+                 <span class="name">${user.Name}</span>
             </div>
            
             <div class="dropdown-item menuItemLayout" id="modify">
@@ -476,6 +527,7 @@ function updateDropDownMenu() {
                     user = null; 
                     updateDropDownMenu();
                     showPosts();
+                    location.reload(true);
                 }
                 
             }
@@ -679,9 +731,9 @@ function renderConnexionForm(newUser = false){
                 required
             />
             <div id="error-message" class="text-danger mt-2"></div>
-            <input type="submit" value="Connexion" id="Connect" class="btn btn-primary ">
-            <br>
-            <input type="button" value="Nouveau compte" id="newAccount" class="btn btn-primary ">
+            <input type="submit" value="Connexion" id="Connect" class="bouton btn btn-primary  ">
+            <hr>
+            <input type="button" value="Nouveau compte" id="newAccount" class="bouton btn btn-primary ">
         `);
         
         initFormValidation();
@@ -696,6 +748,7 @@ function renderConnexionForm(newUser = false){
                 contentType: 'application/json', // Content type (for JSON data)
                 data: JSON.stringify(userInfo),
                 success: function(response) { // Callback function if request is successful
+                    console.log(response);
                     sessionStorage.setItem('authToken',response.Access_token);
                     sessionStorage.setItem('user',JSON.stringify(response.User));
                     showPosts();
@@ -778,7 +831,7 @@ function renderInscriptionForm(user = null){
                 value="${user.Name}"
             />
             <label class="form-label">Image </label>
-            <div class='imageUploaderContainer image'>
+            <div class='image imageUploaderContainer '>
                 <div class='imageUploader' 
                      newImage='${create}' 
                      controlId='Avatar' 
@@ -787,10 +840,11 @@ function renderInscriptionForm(user = null){
                 </div>
             </div>
             <div>
-                <input type="submit" value="Enregistrer" id="save" class="btn btn-primary ">
+                <input type="submit" value="Enregistrer" id="save" class=" bouton btn btn-primary ">
             </div>
+            <hr>
             <div id="delete">
-                <input type="button" value="Supprimer le compte" id="delete" class="btn btn-primary ">
+                <input type="button" value="Supprimer le compte" id="delete" class=" red bouton btn btn-primary ">
             </div>
         `);
     initImageUploaders();
@@ -815,7 +869,6 @@ function renderInscriptionForm(user = null){
                 contentType: 'application/json', // Content type (for JSON data)
                 data: JSON.stringify(userDetails),
                 success: function(response) { // Callback function if request is successful
-                    
                     showConnexionForm();
                     // Handle the response here (e.g., navigate the user or display a success message)
                 },
@@ -824,6 +877,7 @@ function renderInscriptionForm(user = null){
                     // Handle errors (e.g., show an error message to the user)
                 }
             });
+            return false;
         });
     }
     else{
@@ -833,7 +887,7 @@ function renderInscriptionForm(user = null){
             $("#ConfirmCourriel").remove();
             $("#ConfirmPassword").remove();
             let userDetails = getFormData($("#userForm"));
-    
+            console.log(sessionStorage.getItem('authToken'));
             
             $.ajax({
                 url: `${API_URL}/accounts/modify`,       // URL of the endpoint you want to hit
@@ -845,6 +899,7 @@ function renderInscriptionForm(user = null){
                 contentType: 'application/json', // Content type (for JSON data)
                 data: JSON.stringify(userDetails),
                 success: function(response) { // Callback function if request is successful
+                    console.log(response);
                     sessionStorage.setItem("user",JSON.stringify(response.User));
                     showConnexionForm();
                     // Handle the response here (e.g., navigate the user or display a success message)
@@ -868,8 +923,8 @@ function deleteUser(user){
         },
         success: function(response) {
             console.log("User successfully removed:", response);
-            showConnexionForm();
             sessionStorage.clear();
+            location.reload(true);
             // You can add your logic here, like redirecting or updating the UI
         },
         error: function(xhr, status, error) {

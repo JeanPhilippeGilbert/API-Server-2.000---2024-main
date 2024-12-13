@@ -166,4 +166,26 @@
 }
 .image{
     width: 50%;
+    display: grid;
+    grid-template-columns: auto;
+    align-items: center;
+}
+.bouton{
+    align-items: center;
+    margin: 20px;
+    margin-left: 320px;
+    display:grid;
+    grid-template-columns: auto ;
+    width: auto;
+}
+.miniimage{
+    border-radius: 50%;
+
+}
+.name{
+    margin-left: 8px;
+}
+.red{
+    background-color: red!important; 
+    color: white !important;
 }

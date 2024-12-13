@@ -50,9 +50,10 @@ export default class AccessControl {
     static writeGrantedAdminOrOwner(HttpContext, requiredAccess, id) {
         if (requiredAccess) {
             if (requiredAccess.writeAccess == 0) return true;
+            console.log(HttpContext);
             if (HttpContext.user && HttpContext.authorizations)
                 return (
-                    authorizations.writeAccess >= requiredAccess.writeAccess ||
+                    HttpContext.authorizations.writeAccess >= requiredAccess.writeAccess ||
                     HttpContext.user.Id == id
                 );
             else
